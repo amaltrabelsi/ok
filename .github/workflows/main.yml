@@ -12,53 +12,38 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      # 1️⃣ Récupérer le code du dépôt
+      # 1️⃣ Récupérer ton code source
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Installer Flutter stable (version compatible Dart 3.8)
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.27.3"
-          channel: "stable"
+      # 2️⃣ Installer Flutter manuellement (version compatible Dart 3.8)
+      - name: Force install Flutter 3.35.7
+        run: |
+          git clone https://github.com/flutter/flutter.git --branch 3.35.7 --depth 1
+          echo "$PWD/flutter/bin" >> $GITHUB_PATH
+          flutter --version
 
-      # 3️⃣ Vérifier la version pour debug
-      - name: Check Flutter version
-        run: flutter --version
-
-      # 4️⃣ Mettre en cache les dépendances (accélère les builds)
-      - name: Cache Flutter packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            build/
-          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: ${{ runner.os }}-flutter-
-
-      # 5️⃣ Installer les dépendances du projet
-      - name: Install dependencies
+      # 3️⃣ Télécharger les dépendances
+      - name: Flutter Pub Get
         run: flutter pub get
 
-      # 6️⃣ Nettoyer le projet (optionnel mais conseillé pour éviter les conflits iOS)
-      - name: Flutter clean
-        run: flutter clean
+      # 4️⃣ Préparer le projet iOS (génère Generated.xcconfig)
+      - name: Prebuild iOS files
+        run: flutter build ios --no-codesign
 
-      # 7️⃣ Préparer les pods (librairies iOS)
+      # 5️⃣ Installer CocoaPods (pour dépendances Swift/Obj-C)
       - name: Install CocoaPods
         run: |
           cd ios
-          pod repo update
-          pod install
+          pod install --repo-update
           cd ..
 
-      # 8️⃣ Construire le .ipa non signé (fonctionne sans compte développeur Apple)
+      # 6️⃣ Construire le fichier .ipa (non signé)
       - name: Build iOS release (.ipa)
         run: flutter build ipa --release --no-codesign
 
-      # 9️⃣ Uploader le fichier .ipa généré dans les artifacts GitHub
-      - name: Upload iOS .ipa artifact
+      # 7️⃣ Uploader le .ipa en artifact (téléchargeable)
+      - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-release
