@@ -8,25 +8,57 @@ on:
 
 jobs:
   build_ios:
-    name: Build Flutter iOS .ipa
+    name: Build Flutter iOS (.ipa)
     runs-on: macos-latest
 
     steps:
-      - name: Checkout code
+      # 1️⃣ Récupérer le code du dépôt
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2️⃣ Installer Flutter stable (version compatible Dart 3.8)
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.27.0"
+          flutter-version: "3.27.3"
+          channel: "stable"
 
+      # 3️⃣ Vérifier la version pour debug
+      - name: Check Flutter version
+        run: flutter --version
+
+      # 4️⃣ Mettre en cache les dépendances (accélère les builds)
+      - name: Cache Flutter packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            build/
+          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: ${{ runner.os }}-flutter-
+
+      # 5️⃣ Installer les dépendances du projet
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build iOS release
-        run: flutter build ipa --release
+      # 6️⃣ Nettoyer le projet (optionnel mais conseillé pour éviter les conflits iOS)
+      - name: Flutter clean
+        run: flutter clean
 
-      - name: Upload IPA artifact
+      # 7️⃣ Préparer les pods (librairies iOS)
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod repo update
+          pod install
+          cd ..
+
+      # 8️⃣ Construire le .ipa non signé (fonctionne sans compte développeur Apple)
+      - name: Build iOS release (.ipa)
+        run: flutter build ipa --release --no-codesign
+
+      # 9️⃣ Uploader le fichier .ipa généré dans les artifacts GitHub
+      - name: Upload iOS .ipa artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-release
