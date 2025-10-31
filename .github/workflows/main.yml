@@ -12,56 +12,54 @@ jobs:
     name: Build Flutter iOS (.ipa)
 
     steps:
-      # 1️⃣ Cloner le dépôt
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Installer Flutter SDK compatible Dart 3.8
       - name: Install Flutter SDK
         run: |
           git clone https://github.com/flutter/flutter.git --branch 3.35.7 --depth 1
-          export PATH="$PATH:$PWD/flutter/bin"
+          echo "$PWD/flutter/bin" >> $GITHUB_PATH
           flutter --version
 
-      # 3️⃣ Vérification du setup
       - name: Doctor check
-        run: |
-          export PATH="$PATH:$PWD/flutter/bin"
-          flutter doctor -v
+        run: flutter doctor -v
 
-      # 4️⃣ Installer dépendances
       - name: Flutter pub get
-        run: |
-          export PATH="$PATH:$PWD/flutter/bin"
-          flutter pub get
+        run: flutter pub get
 
-      # 5️⃣ Préparer les fichiers iOS
-      - name: Prebuild iOS files
-        run: |
-          export PATH="$PATH:$PWD/flutter/bin"
-          flutter build ios --no-codesign
+      - name: Prebuild iOS
+        run: flutter build ios --no-codesign
 
-      # 6️⃣ Installer les pods CocoaPods
       - name: Install CocoaPods
         run: |
           cd ios
           pod install --repo-update
           cd ..
 
-      # 7️⃣ Compiler le .ipa
       - name: Build iOS release (.ipa)
-        run: |
-          export PATH="$PATH:$PWD/flutter/bin"
-          flutter build ipa --release --no-codesign
+        run: flutter build ipa --release --no-codesign
 
-      # ✅ 8️⃣ Copier le fichier IPA au bon endroit
+      # 🧩 Lister les fichiers générés pour debug
+      - name: List build output
+        run: |
+          echo "Listing build/ios directory:"
+          ls -R build/ios || true
+          echo "Listing build directory:"
+          ls -R build || true
+
+      # ✅ Copier le .ipa (si trouvé) vers le bon dossier
       - name: Prepare IPA for upload
         run: |
           mkdir -p build/ios/ipa
-          cp -R build/ios/archive/Runner.ipa build/ios/ipa/Runner.ipa || true
-          ls -R build/ios/ipa
+          IPA_PATH=$(find build/ios -name "*.ipa" | head -n 1)
+          if [ -f "$IPA_PATH" ]; then
+            echo "✅ Found IPA at: $IPA_PATH"
+            cp "$IPA_PATH" build/ios/ipa/Runner.ipa
+          else
+            echo "⚠️ No IPA found!"
+          fi
+          ls -l build/ios/ipa || true
 
-      # 9️⃣ Upload Artifact vers GitHub
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
         with:
