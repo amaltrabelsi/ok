@@ -12,49 +12,56 @@ jobs:
     name: Build Flutter iOS (.ipa)
 
     steps:
-      # 1️⃣ Cloner ton dépôt
+      # 1️⃣ Cloner le dépôt
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Installer Flutter manuellement (v3.35.7 = Dart 3.8 compatible)
+      # 2️⃣ Installer Flutter SDK compatible Dart 3.8
       - name: Install Flutter SDK
         run: |
           git clone https://github.com/flutter/flutter.git --branch 3.35.7 --depth 1
           export PATH="$PATH:$PWD/flutter/bin"
           flutter --version
 
-      # 3️⃣ Vérifier que Flutter fonctionne
+      # 3️⃣ Vérification du setup
       - name: Doctor check
         run: |
           export PATH="$PATH:$PWD/flutter/bin"
           flutter doctor -v
 
-      # 4️⃣ Installer les dépendances du projet
+      # 4️⃣ Installer dépendances
       - name: Flutter pub get
         run: |
           export PATH="$PATH:$PWD/flutter/bin"
           flutter pub get
 
-      # 5️⃣ Générer les fichiers iOS (sinon Podfile plante)
+      # 5️⃣ Préparer les fichiers iOS
       - name: Prebuild iOS files
         run: |
           export PATH="$PATH:$PWD/flutter/bin"
           flutter build ios --no-codesign
 
-      # 6️⃣ Installer CocoaPods
+      # 6️⃣ Installer les pods CocoaPods
       - name: Install CocoaPods
         run: |
           cd ios
           pod install --repo-update
           cd ..
 
-      # 7️⃣ Compiler le .ipa sans signature (pas besoin de compte Apple)
+      # 7️⃣ Compiler le .ipa
       - name: Build iOS release (.ipa)
         run: |
           export PATH="$PATH:$PWD/flutter/bin"
           flutter build ipa --release --no-codesign
 
-      # 8️⃣ Uploader le .ipa en Artifact GitHub
+      # ✅ 8️⃣ Copier le fichier IPA au bon endroit
+      - name: Prepare IPA for upload
+        run: |
+          mkdir -p build/ios/ipa
+          cp -R build/ios/archive/Runner.ipa build/ios/ipa/Runner.ipa || true
+          ls -R build/ios/ipa
+
+      # 9️⃣ Upload Artifact vers GitHub
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
         with:
